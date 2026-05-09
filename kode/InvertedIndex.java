@@ -1,64 +1,74 @@
 import java.util.*;
+
 import java.io.*;
 import java.nio.file.Files;
 
 public class InvertedIndex {
-    protected HashMap<String, LinkedList<Integer>> invertIndex = new HashMap<>();
-    protected ArrayList<String> docList = new ArrayList<>();
-    private File path;
+    private File folderPath;
+    // pointer angka unik setiap dokumen
+    private static int documentId = 0;
+    // trie node sebagai inverted index
+    private Trie trie = new Trie();
+    // list untuk daftar dokumen
+    private LinkedList<Document> documentList = new LinkedList<>();
 
-    public InvertedIndex(File path) {
-        this.path = path;
+    public InvertedIndex(File folderPath) {
+        this.folderPath = folderPath;
     }
 
     // method untuk membuat inverted index
     public void buildIndex() throws IOException {
-        int docId = 0;
-        for (File dokumen : this.path.listFiles()) {
-            String teks = Files.readString(dokumen.toPath());
-            // tambahkan nama file ke arraylist untuk mapping doc id ke nama file asli
-            docList.addLast(dokumen.getName());
-            // parsing dan tokenisasi berdasarkan karakter non - huruf dan normalisasi
-            String[] parsing = teks.toLowerCase().split("\\W+");
-            // ambil setiap token kata
-            for (String kata : parsing) {
-                if (kata.isEmpty()) {
-                    continue;
-                }
-                // jika pada inverted index dictionary sudah ada kata
-                if (this.invertIndex.containsKey(kata)) {
-                    // tambahkan docid ke linked list selama ia belum ada di post list
-                    LinkedList<Integer> docList = this.invertIndex.get(kata);
-                    if (!docList.getLast().equals(docId)) {
-                        docList.addLast(docId);
-                    }
-                } else {
-                    // jika kata belum ada di dictionary maka inisialisasi posting list
-                    LinkedList<Integer> newList = new LinkedList<>();
-                    newList.addLast(docId);
-                    this.invertIndex.put(kata, newList);
-                }
+        // baca seluruh dokumen di dalam satu folder
+        for (File file : this.folderPath.listFiles()) {
+            // buat instance dokumen baru
+            Document document = new Document(documentId, file.getName());
+            // tambahkan ke daftar dokumen
+            documentList.add(document);
+            // ambil isi dokumen
+            String content = Files.readString(file.toPath());
+            // tokenisasi isi dokument
+            List<String> terms = TextProcessor.tokenize(content);
 
+            // ambil setiap token kata
+            for (String term : terms) {
+                // pastikan term tidak kosong
+                if (term.isEmpty())
+                    continue;
+                // masukkan dokumen berdasarkan term
+                this.trie.insertToPostingList(document, term);
             }
-            docId++;
+
+            // increment documentId untuk dokumen selanjutnya
+            documentId++;
         }
     }
 
-    // method print post list dari dataset
-    public void getPostList() {
-        for (Map.Entry<String, LinkedList<Integer>> entry : this.invertIndex.entrySet()) {
+    // method untuk mendapatkan trie
+    public Trie getTrie() {
+        return this.trie;
+    }
 
-            String term = entry.getKey();
-            LinkedList<Integer> postingList = entry.getValue();
-            ArrayList<String> listNama = new ArrayList<>();
+    // method untuk mendapatkan keseluruhan dokumen
+    public LinkedList<Document> getAllDocuments() {
+        return this.documentList;
+    }
 
-            for (Integer docId : postingList) {
+    // method mendapatkan semua posting list
+    public LinkedList<TermEntry> getAllPostingLists() {
+        return this.trie.getAllTerms();
+    }
 
-                String namaFile = this.docList.get(docId);
-
-                listNama.add(namaFile);
-            }
-            System.out.println(term + " -> " + listNama);
+    // method print semua posting list
+    public void printAllPostingLists() {
+        // ambil semua daftar term pada trie
+        LinkedList<TermEntry> terms = this.trie.getAllTerms();
+        // baca setiap term
+        for (TermEntry term : terms) {
+            System.out.print(term.getTerm() + "\t-> ");
+            // ekstrak daftar dokumen pada posting list
+            for (Document document : term.getPostingList())
+                System.out.print("[" + document.getName() + "] ");
+            System.out.println();
         }
     }
 }
