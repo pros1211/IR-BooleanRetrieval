@@ -1,14 +1,22 @@
 import java.util.*;
 
 public class QueryProcessor {
-    private InvertedIndex invertedIndex;
+    private InvertedIndex dictionary;
     private List<Document> allDocuments; 
+    // Wadah untuk menyimpan daftar term yang ter-highlight di pencarian
+    private Set<String> matchedTerms = new LinkedHashSet<>();
 
-    public QueryProcessor(InvertedIndex invertIndex, List<Document> allDocuments) {
-        this.invertedIndex = invertIndex;
+    public QueryProcessor(InvertedIndex dictionary, List<Document> allDocuments) {
+        this.dictionary = dictionary;
         this.allDocuments = allDocuments;
     }
+    
+    // getter
+    public Set<String> getMatchedTerms() {
+        return matchedTerms;
+    }
 
+    // untuk urutan prioritas operator
     private int getPrecedence(String op) {
         if (op.equals("NOT")) 
             return 3;
@@ -117,6 +125,9 @@ public class QueryProcessor {
     }
     
     public LinkedList<Document> retreiveDocuments(String query) {
+        // kosongkan set setiap kali query dipanggil ulang
+        matchedTerms.clear();
+
         // operator ( dan ) diberikan spasi karena termasuk operator
         query = query
         .replace("(", " ( ")
@@ -161,7 +172,7 @@ public class QueryProcessor {
             postfixQuery.add(operator.pop());
 
         Stack<LinkedList<Document>> listId = new Stack<>();
-        LinkedList<TermEntry> allTerms = invertedIndex.getAllPostingLists();
+        LinkedList<TermEntry> allTerms = dictionary.getAllPostingLists();
 
         // operasi untuk setiap term dalam postfix query
         for (String term : postfixQuery) {
@@ -174,6 +185,8 @@ public class QueryProcessor {
                 for (TermEntry entry : allTerms) {
                     if (entry.getTerm().startsWith(wildcard)) {
                         postListWild = union(postListWild, entry.getPostingList());
+                        // catat semua term yang match dengan pola wildcard
+                        matchedTerms.add(entry.getTerm());
                     }
                 }
                 listId.push(postListWild);
@@ -210,12 +223,29 @@ public class QueryProcessor {
                     // jika kosong, maka ambil term aslinya saja
                     tokenizedTerm = term;
                 
-                LinkedList<Document> normalList = invertedIndex.getTrie().getPostingList(tokenizedTerm);
+                LinkedList<Document> normalList = dictionary.getTrie().getPostingList(tokenizedTerm);
 
                 // jika tidak ada di dalam dictionary
-                if (normalList == null || normalList.isEmpty())
+                if (normalList == null || normalList.isEmpty()) {
+                    System.out.print("Tidak ada term '" + term + "' di dictionary. ");
                     // cek kemungkinan kesalahan ketik
-                    normalList = SpellCheckProcessor.getSpellingCorrection(tokenizedTerm, allTerms);
+                    TermEntry correctedTerm = SpellCheckProcessor.getSpellingCorrection(tokenizedTerm, allTerms);
+                    // jika ya
+                    if (correctedTerm != null) {
+                        // maka tampilkan term yang paling terdekat
+                        System.out.println("Menampilkan dokumen dengan '" + correctedTerm.getTerm() + "'");
+                        normalList = correctedTerm.getPostingList();
+                        // catat term hasil koreksi typo
+                        matchedTerms.add(correctedTerm.getTerm());
+                    }
+                    else {
+                        System.out.println();
+                    }
+                }
+                // jika ada
+                else {
+                    matchedTerms.add(tokenizedTerm);
+                }
 
                 listId.push(normalList);
             }
@@ -223,5 +253,25 @@ public class QueryProcessor {
 
         // ambil hasil daftar pencarian yang terbaik
         return listId.isEmpty() ? new LinkedList<>() : listId.pop();
+    }
+
+    // method untuk mencari term apa saja yang ada di dalem spesifik dokumen
+    public LinkedList<String> getTermsInDocument(Document document) {
+        LinkedList<String> result = new LinkedList<>();
+        // perulangan term yang tampil di hasil pencarian
+        for (String term : matchedTerms) {
+            LinkedList<Document> postingList = dictionary.getTrie().getPostingList(term);
+            if (postingList != null) {
+                for (Document doc : postingList) {
+                    if (doc.getId() == document.getId()) {
+                        // ambil dokumen yang tampil di hasil pencarian
+                        // di mana juga dianggap cocok dengan query
+                        result.add(term);
+                        break;
+                    }
+                }
+            }
+        }
+        return result;
     }
 }

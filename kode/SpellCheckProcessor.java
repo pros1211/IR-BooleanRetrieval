@@ -33,7 +33,7 @@ public class SpellCheckProcessor {
     }
 
     // method untuk mendapatkan daftar dokumen jika terdeteksi adanya typo
-    public static LinkedList<Document> getSpellingCorrection(String term, LinkedList<TermEntry> allTerms) {
+    public static TermEntry getSpellingCorrection(String term, LinkedList<TermEntry> allTerms) {
         String closestTerm = "";
         LinkedList<Document> result = new LinkedList<>();
         int minimumDistance = Integer.MAX_VALUE;
@@ -53,13 +53,11 @@ public class SpellCheckProcessor {
 
         // jika minimum distance lebih kecil dari konstanta
         if (minimumDistance <= MINIMUM_DISTANCE) {
-            // maka tampilkan term yang paling terdekat
-            System.out.println("Typo terdeteksi. Menampilkan dokumen untuk kata terdekat: " + closestTerm);
-            // dan kembalikan daftar dokumen yang terdekat
-            return result;
+            // maka kembalikan daftar dokumen yang terdekat
+            return new TermEntry(closestTerm, result);
         }
         else {
-            return new LinkedList<>();
+            return null;
         }
     }
 
