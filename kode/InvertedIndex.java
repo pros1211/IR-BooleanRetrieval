@@ -1,7 +1,6 @@
-import java.util.*;
-
 import java.io.*;
 import java.nio.file.Files;
+import java.util.*;
 
 public class InvertedIndex {
     private File folderPath;
@@ -9,6 +8,8 @@ public class InvertedIndex {
     private static int documentId = 0;
     // trie node sebagai inverted index
     private Trie trie = new Trie();
+    // trie node untuk kata tanpa stemming (khusus wildcard)
+    private Trie rawTrie = new Trie();
     // list untuk daftar dokumen
     private LinkedList<Document> documentList = new LinkedList<>();
 
@@ -27,10 +28,17 @@ public class InvertedIndex {
             // ambil isi dokumen
             String content = Files.readString(file.toPath());
             // tokenisasi isi dokument
-            List<String> terms = TextProcessor.tokenize(content);
-
+            List<String> termsStem = TextProcessor.tokenizeStem(content);
+            List<String> rawTerms = TextProcessor.tokenizeRaw(content);
             // ambil setiap token kata
-            for (String term : terms) {
+            for (String term : rawTerms) {
+                // pastikan term tidak kosong
+                if (term.isEmpty())
+                    continue;
+                // masukkan dokumen berdasarkan term
+                this.rawTrie.insertToPostingList(document, term);
+            }
+            for (String term : termsStem) {
                 // pastikan term tidak kosong
                 if (term.isEmpty())
                     continue;
@@ -43,9 +51,15 @@ public class InvertedIndex {
         }
     }
 
-    // method untuk mendapatkan trie
-    public Trie getTrie() {
+    // method untuk mendapatkan trie yang berisi hasil stemming
+    public Trie getStemTrie() {
         return this.trie;
+    }
+
+    // method untuk mendapatkan trie yang belum di stemming
+
+    public Trie getRawTrie() {
+        return this.rawTrie;
     }
 
     // method untuk mendapatkan keseluruhan dokumen

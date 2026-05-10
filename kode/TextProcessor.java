@@ -3,25 +3,39 @@ import java.util.*;
 public class TextProcessor {
     // method utama untuk menjalankan proses dari string mentah
     // menjadi daftar bersih token
-    public static LinkedList<String> tokenize(String text) {
+    // tokenizeraw untuk mentokenisasi tanpa stemming
+    public static LinkedList<String> tokenizeRaw(String text) {
+        LinkedList<String> result = new LinkedList<>();
+        String tokens[] = text.toLowerCase().split("[^a-z0-9]+");
+        for (String token : tokens) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            result.add(token);
+        }
+        return result;
+    }
+
+    // tokenizeSTem untuk mentokenisasi dengan stemming
+    public static LinkedList<String> tokenizeStem(String text) {
         LinkedList<String> result = new LinkedList<>();
         // ubah teks menjadi huruf kecil semua
         text = text.toLowerCase();
         // pecah menjadi term dan buang karakter selain huruf dan angka
         String[] tokens = text.split("[^a-z0-9]+");
-        
+
         // perulangan setiap token untuk di-stemming
         for (String token : tokens) {
             // pastikan token bukan string kosong
-            if (token.isEmpty()) 
+            if (token.isEmpty())
                 continue;
-            
+
             String stemmedTerm = PorterStemmer.stem(token);
             // masukkan hasil stem yang tidak kosong ke dalam list
             if (stemmedTerm.isEmpty() == false)
                 result.add(stemmedTerm);
         }
-        
+
         return result;
     }
 
@@ -29,20 +43,17 @@ public class TextProcessor {
     class PorterStemmer {
         public static String stem(String term) {
             // jika term terlalu pendek, biasanya tidak perlu di-stem
-            if (term.length() <= 2) 
+            if (term.length() <= 2)
                 return term;
 
             // Step 1a
             if (term.endsWith("sses")) {
                 term = term.substring(0, term.length() - 2);
-            } 
-            else if (term.endsWith("ies")) {
+            } else if (term.endsWith("ies")) {
                 term = term.substring(0, term.length() - 2);
-            } 
-            else if (term.endsWith("ss")) {
+            } else if (term.endsWith("ss")) {
                 // biarkan tetap ss
-            } 
-            else if (term.endsWith("s")) {
+            } else if (term.endsWith("s")) {
                 term = term.substring(0, term.length() - 1);
             }
 
@@ -52,14 +63,12 @@ public class TextProcessor {
                 if (getMeasure(term.substring(0, term.length() - 3)) > 0) {
                     term = term.substring(0, term.length() - 1);
                 }
-            } 
-            else if (term.endsWith("ed")) {
+            } else if (term.endsWith("ed")) {
                 if (containsVowel(term.substring(0, term.length() - 2))) {
                     term = term.substring(0, term.length() - 2);
                     step1bDone = true;
                 }
-            } 
-            else if (term.endsWith("ing")) {
+            } else if (term.endsWith("ing")) {
                 if (containsVowel(term.substring(0, term.length() - 3))) {
                     term = term.substring(0, term.length() - 3);
                     step1bDone = true;
@@ -68,13 +77,14 @@ public class TextProcessor {
 
             // penyesuaian lanjutan untuk step 1b
             if (step1bDone) {
-                if (term.endsWith("at")) 
+                if (term.endsWith("at"))
                     term = term + "e";
-                else if (term.endsWith("bl")) 
+                else if (term.endsWith("bl"))
                     term = term + "e";
-                else if (term.endsWith("iz")) 
+                else if (term.endsWith("iz"))
                     term = term + "e";
-                else if (endsWithDoubleConsonant(term) && !(term.endsWith("l") || term.endsWith("s") || term.endsWith("z"))) {
+                else if (endsWithDoubleConsonant(term)
+                        && !(term.endsWith("l") || term.endsWith("s") || term.endsWith("z"))) {
                     term = term.substring(0, term.length() - 1);
                 } else if (getMeasure(term) == 1 && endsWithCVC(term)) {
                     term = term + "e";
@@ -97,7 +107,7 @@ public class TextProcessor {
         // method untuk menyatakan apakah mengandung huruf vokal
         private static boolean containsVowel(String str) {
             for (char c : str.toCharArray())
-                if (isVowel(c)) 
+                if (isVowel(c))
                     return true;
             return false;
         }
@@ -105,7 +115,7 @@ public class TextProcessor {
         // method untuk menyatakan apakah berakhiran konsonan ganda
         private static boolean endsWithDoubleConsonant(String str) {
             // sesuai aturan di mana panjang term tidak kurang dari 2 huruf
-            if (str.length() < 2) 
+            if (str.length() < 2)
                 return false;
 
             char c1 = str.charAt(str.length() - 1);
@@ -117,7 +127,7 @@ public class TextProcessor {
         // method untuk menyatakan apakah berakhiran konsonan-vokal-konsonan
         private static boolean endsWithCVC(String str) {
             // sesuai aturan di mana panjang term tidak kurang dari 3 huruf
-            if (str.length() < 3) 
+            if (str.length() < 3)
                 return false;
 
             char c1 = str.charAt(str.length() - 3);
